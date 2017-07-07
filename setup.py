@@ -1,23 +1,40 @@
 #!/usr/bin/env python
 
-from distutils.core import setup
-# you can also import from setuptools
+from setuptools import setup
 
 setup(
-    name='docker-metrics',
-    packages=['dockermetrics'],
-    version='0.0.1',
+    # Application name:
+    name="zabbix-docker-agent",
 
-    description='Implementation of Docker Metrics from sysfs',
-    long_description=(
-        'This module implements'
-        ' cpu, mem, i/o, net metrics extraction from pseudo-files.\n'
-    ),
-    author='Alen Komic',
-    author_email='akomic@gmail.com',
-    license='GPL',
-    url='https://github.com/akomic/docker-metrics',
-    download_url='https://github.com/akomic/docker-metrics',
-    keywords=['docker', 'monitoring', 'metrics'],
-    classifiers=[],
+    # Version number (initial):
+    version="0.0.1",
+
+    # Application author details:
+    author="Alen Komic",
+    author_email="akomic@gmail.com",
+
+    # Packages
+    packages=["ZabbixDockerAgent"],
+
+    # Scripts
+    scripts=['zabbixAgentd'],
+
+    # Include additional files into the package
+    include_package_data=True,
+
+    # Details
+    url="https://github.com/akomic/zabbix-docker-agent",
+
+    #
+    # license="LICENSE.txt",
+    description="Zabbix Docker Agent for collecting dynamic container statistics",
+
+    long_description=open("README.txt").read(),
+
+    keywords=['docker', 'monitoring', 'metrics', 'zabbix'],
+
+    # Dependent packages (distributions)
+    install_requires=[
+        'docker==2.4.0', 'docker-metrics==0.0.1', 'protobix==1.0.0', 'zabbixactivechecks==0.0.2'
+    ],
 )

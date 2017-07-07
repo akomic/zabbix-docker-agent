@@ -3,3 +3,4 @@ dist
 src
 build
 **/__pycache__
+zabbix_docker_agent.egg-info
