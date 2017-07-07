@@ -1,0 +1,4 @@
+docker==2.4.0
+docker-metrics==0.0.1
+protobix==1.0.0
+zabbixactivechecks==0.0.2
