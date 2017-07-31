@@ -7,7 +7,7 @@ setup(
     name="zabbix-docker-agent",
 
     # Version number (initial):
-    version="0.0.1",
+    version="0.0.6",
 
     # Application author details:
     author="Alen Komic",
@@ -27,7 +27,8 @@ setup(
 
     #
     # license="LICENSE.txt",
-    description="Zabbix Docker Agent for collecting dynamic container statistics",
+    description="Zabbix Docker Agent for collecting dynamic" +
+                " container statistics",
 
     long_description=open("README.txt").read(),
 
@@ -35,6 +36,7 @@ setup(
 
     # Dependent packages (distributions)
     install_requires=[
-        'docker==2.4.0', 'docker-metrics==0.0.1', 'protobix==1.0.0', 'zabbixactivechecks==0.0.2'
+        'docker==2.4.0', 'docker-metrics==0.0.3',
+        'protobix==1.0.0', 'zabbixactivechecks==0.0.5'
     ],
 )

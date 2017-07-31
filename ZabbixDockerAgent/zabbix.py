@@ -2,6 +2,7 @@ import os
 import protobix
 import logging
 
+from .toolbox import AppError
 from zabbixactivechecks import ItemList
 
 
@@ -24,10 +25,13 @@ class Zabbix(object):
         return self.zbx_datacontainer
 
     def getItemList(self, host, hostMetadata=None):
-        list = ItemList(host=host)
-        response = list.get(
-            server=self.zbx_config.server_active,
-            port=self.zbx_config.server_port,
-            hostMetadata=hostMetadata
-        )
-        return response.data
+        try:
+            list = ItemList(host=host)
+            response = list.get(
+                server=self.zbx_config.server_active,
+                port=self.zbx_config.server_port,
+                hostMetadata=hostMetadata
+            )
+            return response.data
+        except Exception as e:
+            raise AppError(str(e))

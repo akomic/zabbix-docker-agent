@@ -1,12 +1,20 @@
+import os
 import docker
 
+from .toolbox import AppError
 from dockermetrics import containerMetrics
 
 
 class dockerData(object):
     def __init__(self,
-                 clusterLabel='com.amazonaws.ecs.cluster',
-                 serviceLabel='com.docker.compose.project'):
+                 clusterLabel=os.getenv(
+                     'CLUSTER_LABEL',
+                     'com.amazonaws.ecs.cluster'
+                 ),
+                 serviceLabel=os.getenv(
+                     'SERVICE_LABEL',
+                     'com.amazonaws.ecs.task-definition-family'
+                 )):
         self.clusterLabel = clusterLabel
         self.serviceLabel = serviceLabel
 
@@ -33,4 +41,10 @@ class dockerData(object):
             }
 
     def metrics(self, containerId):
-        return containerMetrics(containerId=containerId, sysfs='/sysfs')
+        try:
+            return containerMetrics(
+                containerId=containerId,
+                sysfs=os.getenv('CGROUPS_DIR', '/cgroupsfs')
+            )
+        except Exception as e:
+            raise AppError(str(e))

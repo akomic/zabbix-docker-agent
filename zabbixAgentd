@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
 import os
 import sys
-import json
 import time
+import logging
 import concurrent.futures
 
-from ZabbixDockerAgent import Zabbix, dockerData
+from ZabbixDockerAgent import *
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+# add ch to logger
+logger.addHandler(ch)
 
 
 def parse_key(itemKey):
@@ -16,18 +25,31 @@ def parse_key(itemKey):
 if os.getenv('DOCKERHOST') is None or \
    os.getenv('ZBX_SERVER_HOST') is None or \
    os.getenv('ZBX_SERVER_PORT') is None:
-    print("Required env variables:"
-          " DOCKERHOST, ZBX_SERVER_HOST, ZBX_SERVER_PORT")
+    logger.error("Required env variables:"
+                 " DOCKERHOST, ZBX_SERVER_HOST, ZBX_SERVER_PORT")
     sys.exit(1)
 
 
 def doInstance(dckr):
+    stats = {
+        'containerCount': len(dckr.discoveryData)
+    }
+
     zbx = Zabbix()
     instanceItems = zbx.getItemList(host=os.getenv('DOCKERHOST'),
-                                    hostMetadata='ECSInstance')
+                                    hostMetadata=os.getenv(
+                                        'HOSTMETADATA', 'ECSInstance')
+                                    )
 
-    print(instanceItems)
+    logger.debug(instanceItems)
+    logger.debug("discoveryData: {}".format(len(dckr.discoveryData)))
 
+    for instanceItem in dckr.discoveryData:
+        logger.debug("discoveryData: {}".format(instanceItem))
+        # logger.debug("---> {}".format(
+        #     instanceItem['{#CONTAINER_NAME}'],
+        #     instanceItem['{#CONTAINER_ID}']
+        # ))
     sender = zbx.initSender(dataType='lld')
     sender.add_item(os.getenv('DOCKERHOST'), 'docker.discovery',
                     dckr.discoveryData)
@@ -35,54 +57,74 @@ def doInstance(dckr):
 
     del zbx
 
+    return stats
+
 
 def doContainer(containerId, zbx, dckr):
-    print(containerId, dckr.containers[containerId]['name'])
+    logger.debug("Doing: {} {}".format(containerId,
+                                       dckr.containers[containerId]['name']))
+
+    stats = {
+        'itemCount': 0
+    }
+
     items = zbx.getItemList(host=containerId)
-    print(json.dumps(items))
+    stats['itemCount'] = len(items)
+    if len(items) == 0:
+        return stats
+    logger.debug("Item list retrieved: {}".format(items))
     metrics = dckr.metrics(containerId=containerId)
-    print(metrics.stats)
+    logger.debug("Metrics collected: {}".format(metrics.stats))
 
     for item in items:
         section, key = parse_key(item['key'])
-        print('ITEM:', section, key, metrics.stats[section][key])
         sender.add_item(
             containerId,
             item['key'],
             metrics.stats[section][key]
         )
-    return 'YES!'
+    return stats
 
+
+logger.info("Starting up ...")
 
 while True:
+    stats = {'itemCount': 0}
     start_time = time.time()
-    dckr = dockerData()
+    try:
+        dckr = dockerData()
 
-    dckr.discover_containers()
+        dckr.discover_containers()
 
-    doInstance(dckr)
+        stats['instance'] = doInstance(dckr)
 
-    zbx = Zabbix()
+        zbx = Zabbix()
 
-    sender = zbx.initSender(dataType='items')
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_container = {
-            executor.submit(doContainer, containerId, zbx, dckr): containerId for containerId in dckr.containers}
+        sender = zbx.initSender(dataType='items')
+        with concurrent.futures.ThreadPoolExecutor(
+                max_workers=os.getenv('MAX_WORKERS', 5)) as executor:
+            future_to_container = {
+                executor.submit(
+                    doContainer, containerId, zbx, dckr
+                ): containerId for containerId in dckr.containers
+            }
 
-        for future in concurrent.futures.as_completed(future_to_container):
-            containerId = future_to_container[future]
-            try:
-                data = future.result()
-            except Exception as exc:
-                print('%r generated an exception: %s' % (containerId, exc))
-            else:
-                print('%r page is %d bytes' % (containerId, len(data)))
-    sender.send()
+            for future in concurrent.futures.as_completed(future_to_container):
+                containerId = future_to_container[future]
+                try:
+                    data = future.result()
+                    stats['itemCount'] += data['itemCount']
+                except Exception as exc:
+                    logger.error('{0} generated an exception: {1}'.format(
+                        containerId, exc))
+        sender.send()
 
-    del zbx
-    del dckr
+        del zbx
+        del dckr
+    except AppError as e:
+        logger.error("ERROR:", str(e))
 
     sleep_time = (60 - (time.time() - start_time))
 
-    print("Sleeping for {0}".format(sleep_time))
+    logger.debug("Sleeping for {0}".format(sleep_time))
     time.sleep(sleep_time)
