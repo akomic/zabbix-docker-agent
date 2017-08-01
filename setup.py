@@ -36,7 +36,7 @@ setup(
 
     # Dependent packages (distributions)
     install_requires=[
-        'docker==2.4.0', 'docker-metrics==0.0.3',
+        'docker==2.4.0', 'docker-metrics==0.0.4',
         'protobix==1.0.0', 'zabbixactivechecks==0.0.5'
     ],
 )
