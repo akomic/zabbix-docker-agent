@@ -44,7 +44,7 @@ class dockerData(object):
         try:
             return containerMetrics(
                 containerId=containerId,
-                sysfs=os.getenv('CGROUPS_DIR', '/cgroupsfs')
+                sysfs=os.getenv('CGROUPS_DIR', '/cgroupfs')
             )
         except Exception as e:
             raise AppError(str(e))

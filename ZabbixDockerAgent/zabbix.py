@@ -9,12 +9,10 @@ from zabbixactivechecks import ItemList
 class Zabbix(object):
     def __init__(self):
         self.logProtobix = logging.getLogger('Protobix')
-        # self.logProtobix.setLevel(logging.INFO)
         self.zbx_config = protobix.ZabbixAgentConfig()
-        #     logger=self.logProtobix
-        # )
         self.zbx_config.server_active = os.getenv('ZBX_SERVER_HOST')
-        self.zbx_config.server_port = int(os.getenv('ZBX_SERVER_PORT'))
+        self.zbx_config.server_port = \
+            int(os.getenv('ZBX_SERVER_PORT', '10051'))
         self.zbx_config.timeout = 10
 
         self.zbx_datacontainer = None
