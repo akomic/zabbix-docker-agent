@@ -27,6 +27,7 @@ class dockerData(object):
             self.discoveryData.append({
                 '{#CONTAINER_NAME}': container.name,
                 '{#CONTAINER_ID}': container.id,
+                '{#CONTAINER_SHORT_ID}': container.short_id,
                 '{#CONTAINER_STATUS}': container.status,
                 '{#CONTAINER_CLUSTER}':
                     container.labels.get(self.clusterLabel),

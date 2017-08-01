@@ -20,7 +20,10 @@ logger.addHandler(ch)
 
 def parse_key(itemKey):
     docker, section, key = itemKey.split('.')
-    return section, key
+    if docker == 'docker':
+        return section, key
+    else:
+        return None, None
 
 
 if os.getenv('DOCKERHOST') is None or \
@@ -42,18 +45,19 @@ def doInstance(dckr):
                                     )
 
     logger.debug(instanceItems)
-    logger.debug("discoveryData: {}".format(len(dckr.discoveryData)))
+    logger.debug("discoveryData Containers found: {}".format(
+        len(dckr.discoveryData)))
+
+    discovery = len([k for k in instanceItems
+                     if k['key'] == 'docker.discovery'])
 
     for instanceItem in dckr.discoveryData:
         logger.debug("discoveryData: {}".format(instanceItem))
-        # logger.debug("---> {}".format(
-        #     instanceItem['{#CONTAINER_NAME}'],
-        #     instanceItem['{#CONTAINER_ID}']
-        # ))
-    sender = zbx.initSender(dataType='lld')
-    sender.add_item(os.getenv('DOCKERHOST'), 'docker.discovery',
-                    dckr.discoveryData)
-    sender.send()
+    if discovery > 0:
+        sender = zbx.initSender(dataType='lld')
+        sender.add_item(os.getenv('DOCKERHOST'), 'docker.discovery',
+                        dckr.discoveryData)
+        sender.send()
 
     del zbx
 
@@ -61,8 +65,8 @@ def doInstance(dckr):
 
 
 def doContainer(containerId, zbx, dckr):
-    logger.debug("Doing: {} {}".format(containerId,
-                                       dckr.containers[containerId]['name']))
+    logger.debug("Collecting metrics for container: {} {}".format(
+        containerId, dckr.containers[containerId]['name']))
 
     stats = {
         'itemCount': 0
@@ -83,6 +87,7 @@ def doContainer(containerId, zbx, dckr):
             item['key'],
             metrics.stats[section][key]
         )
+        logger.debug("Item colleted: {}".format(item['key']))
     return stats
 
 
