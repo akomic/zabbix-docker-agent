@@ -27,7 +27,7 @@ class Container(object):
 
     def getLabel(self, labelName):
         try:
-            return self.labels[labelName]
+            return self.info['labels'][labelName]
         except Exception:
             return ''
 
