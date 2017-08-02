@@ -62,5 +62,5 @@ docker run -d --restart always --name zabbixAgent \
 -e ZBX_SERVER_HOST=zabbix-server.foo.bar \
 -v /cgroup:/cgroupfs \
 -v /var/run/docker.sock:/var/run/docker.sock \
-akomic/zabbix-docker-agent:0.0.8
+akomic/zabbix-docker-agent:0.0.10
 ```

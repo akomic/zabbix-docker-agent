@@ -86,14 +86,14 @@ def doContainer(containerId, zbx, dckr):
         return stats
     logger.debug("Item list retrieved: {}".format(items))
     metrics = dckr.metrics(containerId=containerId)
-    logger.debug("Metrics collected: {}".format(metrics.stats))
+    logger.debug("Metrics collected: {}".format(metrics))
 
     for item in items:
         section, key = parse_key(item['key'])
         sender.add_item(
             containerId,
             item['key'],
-            metrics.stats[section][key]
+            metrics[section][key]
         )
         logger.debug("Item colleted: {}".format(item['key']))
     return stats
