@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>3.2</version>
-    <date>2017-08-02T10:17:28Z</date>
+    <date>2017-08-02T11:11:08Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -46,7 +46,7 @@
                     <value_type>3</value_type>
                     <allowed_hosts/>
                     <units/>
-                    <delta>0</delta>
+                    <delta>2</delta>
                     <snmpv3_contextname/>
                     <snmpv3_securityname/>
                     <snmpv3_securitylevel>0</snmpv3_securitylevel>
@@ -89,7 +89,7 @@
                     <value_type>3</value_type>
                     <allowed_hosts/>
                     <units>s</units>
-                    <delta>0</delta>
+                    <delta>1</delta>
                     <snmpv3_contextname/>
                     <snmpv3_securityname/>
                     <snmpv3_securitylevel>0</snmpv3_securitylevel>
@@ -122,7 +122,7 @@
                     <name>Container CPU Usage</name>
                     <type>7</type>
                     <snmp_community/>
-                    <multiplier>0</multiplier>
+                    <multiplier>1</multiplier>
                     <snmp_oid/>
                     <key>docker.cpu.usage</key>
                     <delay>30</delay>
@@ -131,8 +131,8 @@
                     <status>0</status>
                     <value_type>3</value_type>
                     <allowed_hosts/>
-                    <units/>
-                    <delta>0</delta>
+                    <units>%</units>
+                    <delta>1</delta>
                     <snmpv3_contextname/>
                     <snmpv3_securityname/>
                     <snmpv3_securitylevel>0</snmpv3_securitylevel>
@@ -140,7 +140,7 @@
                     <snmpv3_authpassphrase/>
                     <snmpv3_privprotocol>0</snmpv3_privprotocol>
                     <snmpv3_privpassphrase/>
-                    <formula>1</formula>
+                    <formula>0.000000001</formula>
                     <delay_flex/>
                     <params/>
                     <ipmi_sensor/>
@@ -390,7 +390,7 @@
                     <value_type>3</value_type>
                     <allowed_hosts/>
                     <units>B</units>
-                    <delta>0</delta>
+                    <delta>2</delta>
                     <snmpv3_contextname/>
                     <snmpv3_securityname/>
                     <snmpv3_securitylevel>0</snmpv3_securitylevel>
@@ -433,7 +433,7 @@
                     <value_type>3</value_type>
                     <allowed_hosts/>
                     <units>B</units>
-                    <delta>0</delta>
+                    <delta>2</delta>
                     <snmpv3_contextname/>
                     <snmpv3_securityname/>
                     <snmpv3_securitylevel>0</snmpv3_securitylevel>
@@ -476,7 +476,7 @@
                     <value_type>3</value_type>
                     <allowed_hosts/>
                     <units/>
-                    <delta>0</delta>
+                    <delta>2</delta>
                     <snmpv3_contextname/>
                     <snmpv3_securityname/>
                     <snmpv3_securitylevel>0</snmpv3_securitylevel>
@@ -642,4 +642,70 @@
             <screens/>
         </template>
     </templates>
+    <triggers>
+        <trigger>
+            <expression>{Template Docker Container:docker.cpu.throttled_time.last(#5)}&gt;10</expression>
+            <recovery_mode>0</recovery_mode>
+            <recovery_expression/>
+            <name>Container CPU throttling too much</name>
+            <correlation_mode>0</correlation_mode>
+            <correlation_tag/>
+            <url/>
+            <status>0</status>
+            <priority>2</priority>
+            <description/>
+            <type>0</type>
+            <manual_close>0</manual_close>
+            <dependencies/>
+            <tags/>
+        </trigger>
+        <trigger>
+            <expression>{Template Docker Container:docker.cpu.nr_periods.last(#5)}&gt;10</expression>
+            <recovery_mode>0</recovery_mode>
+            <recovery_expression/>
+            <name>Container CPU Usage hitting limits</name>
+            <correlation_mode>0</correlation_mode>
+            <correlation_tag/>
+            <url/>
+            <status>0</status>
+            <priority>2</priority>
+            <description/>
+            <type>0</type>
+            <manual_close>0</manual_close>
+            <dependencies/>
+            <tags/>
+        </trigger>
+        <trigger>
+            <expression>{Template Docker Container:docker.cpu.usage.last(#5)}&gt;70</expression>
+            <recovery_mode>0</recovery_mode>
+            <recovery_expression/>
+            <name>Container CPU Usage too high</name>
+            <correlation_mode>0</correlation_mode>
+            <correlation_tag/>
+            <url/>
+            <status>0</status>
+            <priority>2</priority>
+            <description/>
+            <type>0</type>
+            <manual_close>0</manual_close>
+            <dependencies/>
+            <tags/>
+        </trigger>
+        <trigger>
+            <expression>{Template Docker Container:docker.mem.failcnt.last(#5)}=10</expression>
+            <recovery_mode>0</recovery_mode>
+            <recovery_expression/>
+            <name>Container Memory Usage hitting limits</name>
+            <correlation_mode>0</correlation_mode>
+            <correlation_tag/>
+            <url/>
+            <status>0</status>
+            <priority>2</priority>
+            <description/>
+            <type>0</type>
+            <manual_close>0</manual_close>
+            <dependencies/>
+            <tags/>
+        </trigger>
+    </triggers>
 </zabbix_export>
