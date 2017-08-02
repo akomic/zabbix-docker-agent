@@ -1,0 +1,5 @@
+language: python
+sudo: enabled
+install: true
+script:
+    - echo YES
