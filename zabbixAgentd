@@ -28,10 +28,7 @@ logger.addHandler(ch)
 
 def parse_key(itemKey):
     docker, section, key = itemKey.split('.')
-    if docker == 'docker':
-        return section, key
-    else:
-        return None, None
+    return section, key
 
 
 if os.getenv('DOCKERHOST') is None or \
