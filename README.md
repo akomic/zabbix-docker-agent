@@ -1,16 +1,23 @@
 # zabbix-docker-agent
 
-This is the implementation of Zabbix Agent specifically for dynamic nature of Docker container monitoring and it works in active mode only.
-It's not intended as replacement for standard Zabbix Agent.
+This is the implementation of Zabbix Agent specifically for dynamic nature of Docker container monitoring and it works in active mode only,
+and is not replacement for standard Zabbix Agent.
 It's using two methods of collecting data from Docker, over the Docker Daemon API and through sysfs.
+
+Tested and developed on Zabbix 3.2
 
 # How it works
 
-To start monitoring you need to have Server Instance added to Zabbix and 'Template Docker Instance' attached to it.
-This is used by Zabbix Docker Agent to discover containers running on this instance and
-place it into the already created groups that match the "CLUSTER_LABEL" and "SERVICE_LABEL" Docker labels specified in configuration.
-When starting Zabbix Docker Agent DOCKERHOST needs to match the hostname specified in Zabbix.
-Containers that no longer are running on the instance are removed from the Zabbix automatically.
+To start monitoring you need to do the following:
+
+- Go to: Configuration > Actions > Event Source: Auto Registration > Create Action
+- Under Action tab create "New condition" with "Host metadata" like "ECSInstance"
+- Under Operations tab create "Operations", "Operation type" is "Link to template" and "Templates" is "Template Docker Instance"
+- Add
+
+Running Zabbix Docker Agent on any instance will auto-create Host in Zabbix with Discovery rule which creates new Hosts in Zabbix for each discovered Docker container.
+It also puts discovered Docker container hosts to groups based on Docker labels specified in configuration of the Zabbix Docker Agent.
+Docker containers that are no longer running on the instance are removed from Zabbix automatically.
 
 # Configuration
 
@@ -50,7 +57,7 @@ It should be mounted inside agent container under /cgroupfs (e.g. -v /cgroup:/cg
 Easiest way to run the Zabbix Docker Agent is to start it as a container on the server instance that you want to monitor.
 
 ```shell
-docker run -it --rm --name zabbixAgent \
+docker run -d --restart always --name zabbixAgent \
 -e DOCKERHOST=$(curl -s http://169.254.169.254/latest/meta-data/instance-id) \
 -e ZBX_SERVER_HOST=zabbix-server.foo.bar \
 -v /cgroup:/cgroupfs \
