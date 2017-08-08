@@ -62,9 +62,6 @@ def doInstance(dckr):
         if instanceItem['key'] == 'docker.discovery':
             sender.add_item(os.getenv('DOCKERHOST'), 'docker.discovery',
                             dckr.discoveryData)
-        elif instanceItem['key'] == 'docker.groupsDiscovery':
-            sender.add_item(os.getenv('DOCKERHOST'), 'docker.groupsDiscovery',
-                            dckr.discoveredGroups)
 
     sender.send()
 

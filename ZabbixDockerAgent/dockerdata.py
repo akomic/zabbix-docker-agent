@@ -40,11 +40,11 @@ class Container(object):
         except Exception as e:
             return (repr(e), 1)
 
-    def getLabel(self, labelName):
+    def getLabel(self, labelName, ret=''):
         try:
             return self.info['labels'][0][labelName]
         except Exception:
-            return ''
+            return ret
 
     def get(self, key, ret=''):
         if key in self.info and self.info[key][1] == 0:
@@ -94,18 +94,18 @@ class dockerData(object):
 
         self.containers = {}
         self.discoveryData = []
-        self.discoveredGroups = []
 
     def discover_containers(self):
-        groups = {}
         for container in Containers():
             self.discoveryData.append({
                 '{#CONTAINER_NAME}': container.get('name'),
                 '{#CONTAINER_ID}': container.get('id'),
                 '{#CONTAINER_SHORT_ID}': container.get('short_id'),
                 '{#CONTAINER_STATUS}': container.get('status'),
-                '{#CONTAINER_CLUSTER}': container.getLabel(self.clusterLabel),
-                '{#CONTAINER_SERVICE}': container.getLabel(self.serviceLabel),
+                '{#CONTAINER_CLUSTER}': container.getLabel(
+                    self.clusterLabel, 'Containers'),
+                '{#CONTAINER_SERVICE}': container.getLabel(
+                    self.serviceLabel, 'Containers'),
                 '{#CONTAINER_IMAGE}': container.get('image'),
                 '{#CONTAINER_RESTARTCOUNT}': container.get('restartCount', 0),
                 '{#CONTAINER_CPUSHARES}': container.get('cpuShares', 0),
@@ -114,14 +114,7 @@ class dockerData(object):
                     'memoryReservation', 0),
                 '{#CONTAINER_MEMORYSWAP}': container.get('memorySwap', 0)
             })
-            groups[container.getLabel(self.clusterLabel)] = 1
-            groups[container.getLabel(self.serviceLabel)] = 1
             self.containers[container.get('id')] = container.info
-
-        for g in groups:
-            self.discoveredGroups.append({
-                '{#CONTAINER_GROUP}': g
-            })
 
     def metrics(self, containerId):
         try:
