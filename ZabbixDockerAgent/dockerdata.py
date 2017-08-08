@@ -15,42 +15,56 @@ class Container(object):
 
     def __getName(self):
         try:
-            return self.raw['Name'].strip('/')
-        except Exception:
-            return ''
+            return (self.raw['Name'].strip('/'), 0)
+        except KeyError:
+            return ('Unknown key', 1)
+        except Exception as e:
+            return (repr(e), 1)
 
-    def __get2(self, key1, key2, ret=''):
+    def __getShortId(self):
         try:
-            return self.raw[key1][key2]
-        except Exception:
-            return ret
+            return (self.raw['Id'][0:12], 0)
+        except KeyError:
+            return ('Unknown key', 1)
+        except Exception as e:
+            return (repr(e), 1)
+
+    def __get(self, key1, key2=None):
+        try:
+            if key2 is None:
+                return (self.raw[key1], 0)
+            else:
+                return (self.raw[key1][key2], 0)
+        except KeyError:
+            return ('Unknown key ' + key1 + ' ' + key2, 1)
+        except Exception as e:
+            return (repr(e), 1)
 
     def getLabel(self, labelName):
         try:
-            return self.info['labels'][labelName]
+            return self.info['labels'][0][labelName]
         except Exception:
             return ''
 
     def get(self, key, ret=''):
-        if key in self.info:
-            return self.info[key]
+        if key in self.info and self.info[key][1] == 0:
+            return self.info[key][0]
         else:
             return ret
 
     def __process(self):
         self.info = {
             'name': self.__getName(),
-            'id': self.raw['Id'],
-            'short_id': self.raw['Id'][0:12],
-            'status': self.__get2('State', 'Status'),
-            'labels': self.__get2('Config', 'Labels', {}),
-            'image': self.__get2('Config', 'Image'),
-            'restartCount': self.raw.get('RestartCount', 0),
-            'cpuShares': self.__get2('HostConfig', 'CpuShares', 0),
-            'memory': self.__get2('HostConfig', 'Memory', 0),
-            'memoryReservation': self.__get2('HostConfig',
-                                             'memoryReservation', 0),
-            'memorySwap': self.__get2('HostConfig', 'MemorySwap', 0)
+            'id': self.__get('Id'),
+            'short_id': self.__getShortId(),
+            'status': self.__get('State', 'Status'),
+            'labels': self.__get('Config', 'Labels'),
+            'image': self.__get('Config', 'Image'),
+            'restartCount': self.__get('RestartCount'),
+            'cpuShares': self.__get('HostConfig', 'CpuShares'),
+            'memory': self.__get('HostConfig', 'Memory'),
+            'memoryReservation': self.__get('HostConfig', 'MemoryReservation'),
+            'memorySwap': self.__get('HostConfig', 'MemorySwap')
         }
 
 
@@ -80,8 +94,10 @@ class dockerData(object):
 
         self.containers = {}
         self.discoveryData = []
+        self.discoveredGroups = []
 
     def discover_containers(self):
+        groups = {}
         for container in Containers():
             self.discoveryData.append({
                 '{#CONTAINER_NAME}': container.get('name'),
@@ -98,7 +114,14 @@ class dockerData(object):
                     'memoryReservation', 0),
                 '{#CONTAINER_MEMORYSWAP}': container.get('memorySwap', 0)
             })
+            groups[container.getLabel(self.clusterLabel)] = 1
+            groups[container.getLabel(self.serviceLabel)] = 1
             self.containers[container.get('id')] = container.info
+
+        for g in groups:
+            self.discoveredGroups.append({
+                '{#CONTAINER_GROUP}': g
+            })
 
     def metrics(self, containerId):
         try:

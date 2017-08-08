@@ -6,6 +6,8 @@ ADD zabbixAgentd setup.py setup.cfg README.txt /app/
 
 ADD ZabbixDockerAgent /app/ZabbixDockerAgent/
 
-RUN cd /app && python setup.py build && python setup.py install
+RUN apt-get -q update && apt-get -y install git && \
+  pip install "git+https://github.com/akomic/python-protobix.git@dev" && \
+  cd /app && python setup.py build && python setup.py install
 
 CMD ["zabbixAgentd"]

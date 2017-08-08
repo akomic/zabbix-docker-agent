@@ -2,8 +2,9 @@
 import os
 import sys
 import time
-import argparse
 import logging
+import argparse
+import traceback
 import concurrent.futures
 
 from ZabbixDockerAgent import *
@@ -44,25 +45,28 @@ def doInstance(dckr):
     }
 
     zbx = Zabbix()
-    instanceItems = zbx.getItemList(host=os.getenv('DOCKERHOST'),
-                                    hostMetadata=os.getenv(
-                                        'HOSTMETADATA', 'ECSInstance')
-                                    )
+    instanceItems = zbx.getItemList(
+        host=os.getenv('DOCKERHOST'),
+        hostMetadata=os.getenv('HOSTMETADATA', 'ECSInstance')
+    )
 
     logger.debug(instanceItems)
     logger.debug("discoveryData Containers found: {}".format(
         len(dckr.discoveryData)))
 
-    discovery = len([k for k in instanceItems
-                     if k['key'] == 'docker.discovery'])
+    for instanceData in dckr.discoveryData:
+        logger.debug("discoveryData: {}".format(instanceData))
 
-    for instanceItem in dckr.discoveryData:
-        logger.debug("discoveryData: {}".format(instanceItem))
-    if discovery > 0:
-        sender = zbx.initSender(dataType='lld')
-        sender.add_item(os.getenv('DOCKERHOST'), 'docker.discovery',
-                        dckr.discoveryData)
-        sender.send()
+    sender = zbx.initSender(dataType='lld')
+    for instanceItem in instanceItems:
+        if instanceItem['key'] == 'docker.discovery':
+            sender.add_item(os.getenv('DOCKERHOST'), 'docker.discovery',
+                            dckr.discoveryData)
+        elif instanceItem['key'] == 'docker.groupsDiscovery':
+            sender.add_item(os.getenv('DOCKERHOST'), 'docker.groupsDiscovery',
+                            dckr.discoveredGroups)
+
+    sender.send()
 
     del zbx
 
@@ -76,7 +80,6 @@ def doContainer(containerId, zbx, dckr):
     stats = {
         'itemCount': 0
     }
-
     items = zbx.getItemList(host=containerId)
     stats['itemCount'] = len(items)
     if len(items) == 0:
@@ -86,13 +89,26 @@ def doContainer(containerId, zbx, dckr):
     logger.debug("Metrics collected: {}".format(metrics))
 
     for item in items:
-        section, key = parse_key(item['key'])
-        sender.add_item(
-            containerId,
-            item['key'],
-            metrics[section][key]
-        )
-        logger.debug("Item colleted: {}".format(item['key']))
+        if item['key'].startswith('docker.'):
+            try:
+                section, key = parse_key(item['key'])
+
+                itemValue, itemState = metrics[section][key]
+            except Exception:
+                itemValue = 'Unknown key'
+                itemState = 1
+            finally:
+                sender.add_item(
+                    containerId,
+                    item['key'],
+                    itemValue,
+                    state=itemState
+                )
+                logger.debug("Sending: key:{} value:{} state:{}".format(
+                    item['key'],
+                    itemValue,
+                    itemState
+                ))
     return stats
 
 
@@ -125,8 +141,9 @@ while True:
                     data = future.result()
                     stats['itemCount'] += data['itemCount']
                 except Exception as exc:
-                    logger.error('{0} generated an exception: {1}'.format(
-                        containerId, exc))
+                    logger.error('Container {0} generated an exception'.format(
+                        containerId))
+                    logger.debug(traceback.print_exc())
         sender.send()
 
         del zbx
