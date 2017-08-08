@@ -7,7 +7,7 @@ setup(
     name="zabbix-docker-agent",
 
     # Version number (initial):
-    version="0.0.11",
+    version="0.1.0",
 
     # Application author details:
     author="Alen Komic",
