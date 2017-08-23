@@ -2,6 +2,9 @@
 import os
 import sys
 import time
+import json
+import pickle
+import codecs
 import logging
 import argparse
 import traceback
@@ -57,13 +60,26 @@ def doInstance(dckr):
     for instanceData in dckr.discoveryData:
         logger.debug("discoveryData: {}".format(instanceData))
 
-    sender = zbx.initSender(dataType='lld')
+    LLDSender = zbx.initSender(dataType='lld')
+    ItemsSender = zbx.initSender(dataType='items')
     for instanceItem in instanceItems:
         if instanceItem['key'] == 'docker.discovery':
-            sender.add_item(os.getenv('DOCKERHOST'), 'docker.discovery',
-                            dckr.discoveryData)
+            LLDSender.add_item(os.getenv('DOCKERHOST'),
+                               'docker.discovery',
+                               dckr.discoveryData)
+        elif instanceItem['key'] == 'docker.instanceDiscovery':
+            logger.debug("SENDING INSTANCE DISCOVERY DATA")
+            logger.debug("{}".format(dckr.instancesData))
 
-    sender.send()
+            payload = codecs.encode(
+                pickle.dumps(dckr.instancesData), "base64").decode()
+            ItemsSender.add_item(os.getenv('DOCKERHOST'),
+                                 'docker.instanceDiscovery',
+                                 payload)
+
+    LLDSender.send()
+    resp = ItemsSender.send()
+    print(json.dumps(resp))
 
     del zbx
 

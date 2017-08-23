@@ -1,0 +1,383 @@
+#!/usr/bin/env python3
+import sys
+import json
+import pickle
+import codecs
+import logging
+import argparse
+from pyzabbix import ZabbixAPI
+
+parser = argparse.ArgumentParser(description='Zabbix Docker Discovery')
+parser.add_argument(
+    '-c', dest='configFile',
+    default='/etc/zabbix/dockerDiscovery.json',
+    help='Config file location (default /etc/zabbix/dockerDiscovery.json'
+)
+parser.add_argument('-l', dest='loglevel',
+                    choices=[
+                        'CRITICAL',
+                        'ERROR',
+                        'WARNING',
+                        'INFO',
+                        'DEBUG',
+                        'NOTSET'
+                    ],
+                    default='INFO',
+                    help='Loglevel')
+
+args = parser.parse_args()
+
+with open(args.configFile) as config_file:
+    Config = json.load(config_file)
+
+logger = logging.getLogger()
+ch = logging.StreamHandler()
+logLevel = logging.getLevelName(args.loglevel)
+ch.setLevel(logLevel)
+logger.addHandler(ch)
+
+zapi = None
+
+zapi = ZabbixAPI(Config['Zabbix']['url'])
+
+zapi.session.verify = True
+zapi.timeout = 5
+zapi.login(Config['Zabbix']['User'], Config['Zabbix']['Pass'])
+
+
+class dockerInstance(object):
+    def __init__(self, hostData, discoveryDataRaw):
+        self.hostData = hostData
+        self.hostHost = hostData['host']
+        self.proxyID = hostData['proxy_hostid']
+        self.discoveryDataRaw = discoveryDataRaw
+        self.discoveryData = self.__decodeDiscoveryData()
+        self.containers = {}
+        self.groups = self.__getGroups()
+        self.__getContainers()
+
+    def __decodeDiscoveryData(self):
+        if self.discoveryDataRaw == '0':
+            logger.warning("No discovery data for {}".format(self.hostHost))
+            return {}
+
+        try:
+            return pickle.loads(
+                codecs.decode(
+                    self.discoveryDataRaw.encode(), "base64"
+                )
+            )
+        except Exception as e:
+            logger.warning("Unable to decode discovery data"
+                           " for host: {}".format(self.hostHost))
+            logger.warning(str(e))
+            return {}
+
+    def __getContainers(self):
+        for cId, c in self.discoveryData.items():
+            self.containers[cId] = c
+            self.containers[cId].update({
+                'uniqueName': "{} - {}".format(c['name'],self.hostHost),
+                'parentHostHost': self.hostHost,
+                'proxy_hostid': self.proxyID,
+            })
+
+    def __getGroups(self):
+        groups = []
+        for cId, c in self.discoveryData.items():
+            groups += c['groups']
+        return groups
+
+    def dump(self):
+        print(json.dumps(self.discoveryData))
+
+
+class docker(object):
+    def __init__(self):
+        self.instances = {}
+        self.containers = {}
+        self.containersList = []
+        self.groupsList = []
+        self.discovery()
+
+    def discovery(self):
+        discoveryItemResp = zapi.item.get(
+            filter={'key_': 'docker.instanceDiscovery'},
+            monitored='true',
+            selectHosts='extend'
+        )
+        for discoveryItem in discoveryItemResp:
+            hostHost = discoveryItem['hosts'][0]['host']
+            self.instances[hostHost] = dockerInstance(
+                discoveryItem['hosts'][0],
+                discoveryItem['lastvalue']
+            )
+            self.containersList += list(
+                self.instances[hostHost].containers.keys())
+            self.groupsList += list(self.instances[hostHost].groups)
+            self.containers.update(self.instances[hostHost].containers)
+
+        self.containersList = list(set(self.containersList))
+        self.groupsList = list(set(self.groupsList))
+
+    def dump(self):
+        print(self.groups)
+
+
+class zabbix(object):
+    def __init__(self, docker):
+        self.docker = docker
+        self.hostsData = {}
+        self.groupsData = {}
+        self.templatesData = {}
+
+        self.containers = {}
+        self.containersList = []
+
+        self.groupHosts = {}
+        self.groupHostsList = []
+
+        self.allGroups = {}
+        self.allGroupsList = []
+
+        self.containerTemplateId = None
+        self.groupTemplateId = None
+        self.metaHostGroupId = None
+
+        self.__sync()
+
+    def fetch(self):
+        try:
+            self.hostsData = zapi.host.get(
+                output='extend',
+                selectGroups='extend',
+                selectParentTemplates='extend'
+            )
+        except Exception as e:
+            logger.warning("Unable to get data from Zabbix")
+            logger.warning(str(e))
+            self.hostsData = {}
+
+        try:
+            self.groupsData = zapi.hostgroup.get(output='extend')
+        except Exception as e:
+            logger.warning("Unable to get groups data from Zabbix")
+            logger.warning(str(e))
+            self.groupsData = {}
+
+        try:
+            self.templatesDate = zapi.template.get(output='extend')
+        except Exception as e:
+            logger.warning("Unable to get templates data from Zabbix")
+            logger.warning(str(e))
+            self.groupsData = {}
+
+    def __getMetaHostGroupId(self):
+        for groupName in self.allGroups:
+            if groupName == Config['metaHostGroup']:
+                return self.allGroups[groupName]['groupid']
+        return None
+
+    def __sync(self):
+        self.fetch()
+
+        # Hosts
+        for host in self.hostsData:
+            for template in host['parentTemplates']:
+                if template['host'] == Config['containerTemplate']:
+                    del(host['parentTemplates'])
+                    self.containers[host['host']] = host
+                elif template['host'] == Config['groupTemplate']:
+                    del(host['parentTemplates'])
+                    self.groupHosts[host['host']] = host
+
+        self.containersList = list(self.containers.keys())
+        self.groupHostsList = list(self.groupHosts.keys())
+
+        # Groups
+        self.allGroups = {g['name']: {'groupid': g['groupid']}
+            for g in self.groupsData
+        }
+        self.allGroupsList = list(self.allGroups.keys())
+        self.metaHostGroupId = self.__getMetaHostGroupId()
+
+        # Templates
+        for template in self.templatesDate:
+            if template['host'] == Config['containerTemplate']:
+                self.containerTemplateId = template['templateid']
+            elif template['host'] == Config['groupTemplate']:
+                self.groupTemplateId = template['templateid']
+
+    def __createGroups(self, groupNames):
+        toSync = False
+        for groupName in groupNames:
+            logger.warning("Creating Host Group {}".format(groupName))
+            resp = zapi.hostgroup.create(name=groupName)
+            toSync = True
+        if toSync is True:
+            self.__sync()
+
+    def __createGroupHosts(self, groupHosts):
+        toSync = False
+        for groupHostName in groupHosts:
+            logger.warning("Creating groupHost {}".format(groupName))
+            resp = zapi.host.create(
+                host=groupHostName,
+                name="Group - {}".format(groupHostName),
+                interfaces=[{
+                    "type": 1,
+                    "main": 1,
+                    "useip": 1,
+                    "ip": "127.0.0.1",
+                    "dns": "",
+                    "port": "10050"
+                }],
+                groups=[{'groupid': self.metaHostGroupId}],
+                templates=[{'templateid': self.groupTemplateId}]
+            )
+            toSync = True
+        if toSync is True:
+            self.__sync()
+
+    def __deleteGroups(self, groupNames):
+        toSync = False
+        # GroupHosts
+        for groupName in groupNames:
+            if groupName in self.groupHosts:
+                logger.warning("Deleting groupHost {}".format(groupName))
+                try:
+                    resp = zapi.host.delete(
+                        self.groupHosts[groupName]['hostid'])
+                except Exception as e:
+                    logger.warning("Unable to delete groupHost {}".format(
+                        groupName))
+                    logger.warning("{}".format(str(e)))
+                else:
+                    toSync = True
+
+        # Groups
+        for groupName in groupNames:
+            if groupName in self.allGroups:
+                logger.warning("Deleting group {}".format(groupName))
+                try:
+                    resp = zapi.hostgroup.delete(
+                        self.allGroups[groupName]['groupid'])
+                except Exception as e:
+                    logger.warning("Unable to delete group {}".format(
+                        groupName))
+                    logger.warning("{}".format(str(e)))
+                else:
+                    toSync = True
+
+        if toSync is True:
+            self.__sync()
+
+
+    def __doGroups(self):
+        self.__createGroups(
+            [g for g in docker.groupsList if g not in self.allGroups]
+        )
+        self.__createGroupHosts(
+            [g for g in docker.groupsList if g not in self.groupHostsList]
+        )
+        self.__deleteGroups([
+            gName for gName in self.groupHostsList
+            if gName not in docker.groupsList
+        ])
+
+    def __createHost(self, hostName, uniqueName, groups, proxyID):
+        try:
+            resp =  zapi.host.create(
+                host=hostName,
+                name=uniqueName,
+                interfaces=[{
+                    "type": 1,
+                    "main": 1,
+                    "useip": 1,
+                    "ip": "127.0.0.1",
+                    "dns": "",
+                    "port": "10050"
+                }],
+                groups=groups,
+                templates=[{'templateid': self.containerTemplateId}],
+                proxy_hostid=proxyID
+            )
+        except Exception as e:
+            logger.warning("Problem creating host {}".format(hostName))
+            logger.warning("{}".format(str(e)))
+
+    def __deleteHost(self, hostId):
+        try:
+            resp = zapi.host.delete(hostId)
+        except Exception as e:
+            logger.warning("Problem deleting host {}".format(hostId))
+            logger.warning("{}".format(str(e)))
+
+    def __deleteHosts(self, hostNames):
+        hostNames = list(set(hostNames))
+        toSync = False
+        for hostName in hostNames:
+            print("Deleting {} {}".format(
+                hostName, self.containers[hostName]['name']))
+            self.__deleteHost(self.containers[hostName]['hostid'])
+
+        if toSync is True:
+            self.__sync()
+
+    def __createHosts(self, hostNames):
+        hostNames = list(set(hostNames))
+        toSync = False
+        for hostName in hostNames:
+            host = docker.containers[hostName]
+            logger.warning("Creating host {} - {}".format(
+                hostName, host['uniqueName']))
+
+            groups = [
+                g for gName, g in self.allGroups.items()
+                if gName in host['groups']
+            ]
+            self.__createHost(
+                hostName, host['uniqueName'], groups, host['proxy_hostid'])
+
+        if toSync is True:
+            self.__sync()
+
+    def __doHosts(self):
+        self.__deleteHosts(
+            [c for c in self.containersList if c not in docker.containersList]
+        )
+
+        self.__createHosts(
+            [c for c in docker.containersList if c not in self.containersList]
+        )
+
+    def __updateHost(self):
+        zapi.host.update(
+            hostid=self.hosts.hosts[self.hostName]['hostid'],
+            name="{} - {}".format(self.containerName,
+                                  self.parentHost.hostName),
+            interfaces=[{
+                "type": 1,
+                "main": 1,
+                "useip": 1,
+                "ip": "127.0.0.1",
+                "dns": "",
+                "port": "10050"
+            }],
+            groups=self.groups,
+            templates=[{'templateid': self.templateId}],
+            proxy_hostid=self.parentHost.proxyID
+        )
+
+    def housekeeping(self, containers):
+        for containerId, container in self.containers.items():
+            if containerId not in containers:
+                logger.debug("DELETING HOST {}".format(containerId))
+
+    def sync(self):
+        self.__doGroups()
+        self.__doHosts()
+
+docker = docker()
+zabbix = zabbix(docker)
+zabbix.sync()

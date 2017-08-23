@@ -6,3 +6,4 @@ build
 zabbix_docker_agent.egg-info
 **/examples
 test.py
+**/*sublime:projects*

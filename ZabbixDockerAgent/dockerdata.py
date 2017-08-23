@@ -91,9 +91,11 @@ class dockerData(object):
                  )):
         self.clusterLabel = clusterLabel
         self.serviceLabel = serviceLabel
+        self.labels = ['StackName', 'com.amazonaws.ecs.task-definition-family']
 
         self.containers = {}
         self.discoveryData = []
+        self.instancesData = {}
 
     def discover_containers(self):
         for container in Containers():
@@ -115,6 +117,14 @@ class dockerData(object):
                 '{#CONTAINER_MEMORYSWAP}': container.get('memorySwap', 0)
             })
             self.containers[container.get('id')] = container.info
+            self.instancesData[container.get('id')] = {
+                'short_id': container.get('short_id'),
+                'name': container.get('name'),
+                'groups': list(set(['Containers'] + [
+                    container.getLabel(l, 'Containers')
+                    for l in self.labels
+                ]))
+            }
 
     def metrics(self, containerId):
         try:

@@ -7,7 +7,7 @@ setup(
     name="zabbix-docker-agent",
 
     # Version number (initial):
-    version="0.1.0",
+    version="0.1.1",
 
     # Application author details:
     author="Alen Komic",
@@ -17,7 +17,7 @@ setup(
     packages=["ZabbixDockerAgent"],
 
     # Scripts
-    scripts=['zabbixAgentd'],
+    scripts=['zabbixAgentd','zabbixDockerDiscovery'],
 
     # Include additional files into the package
     include_package_data=True,
