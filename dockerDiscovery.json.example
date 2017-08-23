@@ -1,6 +1,6 @@
 {
     "Zabbix": {
-        "URL": "https://localhost",
+        "URL": "http://localhost",
         "User": "apiUser",
         "Pass": "apiPass"
     },

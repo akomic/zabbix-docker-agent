@@ -7,7 +7,7 @@ setup(
     name="zabbix-docker-agent",
 
     # Version number (initial):
-    version="0.1.1",
+    version="0.1.2",
 
     # Application author details:
     author="Alen Komic",
@@ -33,6 +33,8 @@ setup(
     long_description=open("README.txt").read(),
 
     keywords=['docker', 'monitoring', 'metrics', 'zabbix'],
+
+    data_files=[('/etc/zabbix', ['dockerDiscovery.json.example'])],
 
     # Dependent packages (distributions)
     install_requires=[

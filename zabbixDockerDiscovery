@@ -38,7 +38,7 @@ logger.addHandler(ch)
 
 zapi = None
 
-zapi = ZabbixAPI(Config['Zabbix']['url'])
+zapi = ZabbixAPI(Config['Zabbix']['URL'])
 
 zapi.session.verify = True
 zapi.timeout = 5
