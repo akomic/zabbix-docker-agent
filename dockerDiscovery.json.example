@@ -2,7 +2,7 @@
     "Zabbix": {
         "URL": "https://localhost",
         "User": "apiUser",
-        "Pass": "apiPass",
+        "Pass": "apiPass"
     },
     "containerTemplate": "Template Docker Container",
     "groupTemplate": "Template Docker Group",
