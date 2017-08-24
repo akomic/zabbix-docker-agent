@@ -57,8 +57,9 @@ def doInstance(dckr):
     logger.debug("Containers found: {}".format(
         len(dckr.instancesData)))
 
-    for instanceData in dckr.instancesData:
-        logger.debug("Instance data: {}".format(instanceData))
+    for instanceName, instanceData  in dckr.instancesData.items():
+        logger.debug("Instance data: {} -> {}".format(
+            instanceName,instanceData))
 
     ItemsSender = zbx.initSender(dataType='items')
     for instanceItem in instanceItems:
@@ -80,6 +81,7 @@ def doInstance(dckr):
                                  len(dckr.instancesData))
 
     resp = ItemsSender.send()
+    logger.debug("Sending items to Zabbix response: {}".format(resp))
 
     del zbx
 
