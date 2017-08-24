@@ -220,7 +220,7 @@ class zabbix(object):
     def __createGroupHosts(self, groupHosts):
         toSync = False
         for groupHostName in groupHosts:
-            logger.warning("Creating groupHost {}".format(groupName))
+            logger.warning("Creating groupHost {}".format(groupHostName))
             resp = zapi.host.create(
                 host=groupHostName,
                 name="Group - {}".format(groupHostName),
