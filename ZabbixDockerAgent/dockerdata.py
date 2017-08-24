@@ -95,7 +95,7 @@ class dockerData(object):
                 'name': container.get('name'),
                 'groups': list(
                     set(
-                        ['Containers', os.getenv('DOCKERHOST')] +
+                        ['Containers'] +
                         [
                             container.getLabel(l, 'Containers')
                             for l in self.labels
