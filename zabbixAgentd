@@ -44,31 +44,26 @@ if os.getenv('DOCKERHOST') is None or \
 
 def doInstance(dckr):
     stats = {
-        'containerCount': len(dckr.discoveryData)
+        'containerCount': len(dckr.instancesData)
     }
 
     zbx = Zabbix()
     instanceItems = zbx.getItemList(
         host=os.getenv('DOCKERHOST'),
-        hostMetadata=os.getenv('HOSTMETADATA', 'ECSInstance')
+        hostMetadata=os.getenv('HOSTMETADATA', 'DockerInstance')
     )
 
     logger.debug(instanceItems)
-    logger.debug("discoveryData Containers found: {}".format(
-        len(dckr.discoveryData)))
+    logger.debug("Containers found: {}".format(
+        len(dckr.instancesData)))
 
-    for instanceData in dckr.discoveryData:
-        logger.debug("discoveryData: {}".format(instanceData))
+    for instanceData in dckr.instancesData:
+        logger.debug("Instance data: {}".format(instanceData))
 
-    LLDSender = zbx.initSender(dataType='lld')
     ItemsSender = zbx.initSender(dataType='items')
     for instanceItem in instanceItems:
-        if instanceItem['key'] == 'docker.discovery':
-            LLDSender.add_item(os.getenv('DOCKERHOST'),
-                               'docker.discovery',
-                               dckr.discoveryData)
-        elif instanceItem['key'] == 'docker.instanceDiscovery':
-            logger.debug("SENDING INSTANCE DISCOVERY DATA")
+        if instanceItem['key'] == 'docker.instanceDiscovery':
+            logger.debug("SENDING - docker.instanceDiscovery")
             logger.debug("{}".format(dckr.instancesData))
 
             payload = codecs.encode(
@@ -76,10 +71,15 @@ def doInstance(dckr):
             ItemsSender.add_item(os.getenv('DOCKERHOST'),
                                  'docker.instanceDiscovery',
                                  payload)
+        elif instanceItem['key'] == 'docker.containerCount':
+            logger.debug("SENDING - docker.containerCount - {}".format(
+                len(dckr.instancesData)
+            ))
+            ItemsSender.add_item(os.getenv('DOCKERHOST'),
+                                 'docker.containerCount',
+                                 len(dckr.instancesData))
 
-    LLDSender.send()
     resp = ItemsSender.send()
-    print(json.dumps(resp))
 
     del zbx
 
@@ -135,8 +135,6 @@ while True:
 
         dckr.discover_containers()
 
-        stats['instance'] = doInstance(dckr)
-
         zbx = Zabbix()
 
         sender = zbx.initSender(dataType='items')
@@ -160,6 +158,9 @@ while True:
         sender.send()
 
         del zbx
+
+        stats['instance'] = doInstance(dckr)
+
         del dckr
     except AppError as e:
         logger.error("ERROR:", str(e))

@@ -80,50 +80,28 @@ class Containers(object):
 
 
 class dockerData(object):
-    def __init__(self,
-                 clusterLabel=os.getenv(
-                     'CLUSTER_LABEL',
-                     'com.amazonaws.ecs.cluster'
-                 ),
-                 serviceLabel=os.getenv(
-                     'SERVICE_LABEL',
-                     'com.amazonaws.ecs.task-definition-family'
-                 )):
-        self.clusterLabel = clusterLabel
-        self.serviceLabel = serviceLabel
-        self.labels = ['StackName', 'com.amazonaws.ecs.task-definition-family']
+    def __init__(self):
+        labels = os.getenv('LABELS','')
+        self.labels = [l.strip() for l in labels.split(',')]
 
         self.containers = {}
-        self.discoveryData = []
         self.instancesData = {}
 
     def discover_containers(self):
         for container in Containers():
-            self.discoveryData.append({
-                '{#CONTAINER_NAME}': container.get('name'),
-                '{#CONTAINER_ID}': container.get('id'),
-                '{#CONTAINER_SHORT_ID}': container.get('short_id'),
-                '{#CONTAINER_STATUS}': container.get('status'),
-                '{#CONTAINER_CLUSTER}': container.getLabel(
-                    self.clusterLabel, 'Containers'),
-                '{#CONTAINER_SERVICE}': container.getLabel(
-                    self.serviceLabel, 'Containers'),
-                '{#CONTAINER_IMAGE}': container.get('image'),
-                '{#CONTAINER_RESTARTCOUNT}': container.get('restartCount', 0),
-                '{#CONTAINER_CPUSHARES}': container.get('cpuShares', 0),
-                '{#CONTAINER_MEMORY}': container.get('memory', 0),
-                '{#CONTAINER_MEMORYRESERVATION}': container.get(
-                    'memoryReservation', 0),
-                '{#CONTAINER_MEMORYSWAP}': container.get('memorySwap', 0)
-            })
             self.containers[container.get('id')] = container.info
             self.instancesData[container.get('id')] = {
                 'short_id': container.get('short_id'),
                 'name': container.get('name'),
-                'groups': list(set(['Containers'] + [
-                    container.getLabel(l, 'Containers')
-                    for l in self.labels
-                ]))
+                'groups': list(
+                    set(
+                        ['Containers', os.getenv('DOCKERHOST')] +
+                        [
+                            container.getLabel(l, 'Containers')
+                            for l in self.labels
+                        ]
+                    )
+                )
             }
 
     def metrics(self, containerId):

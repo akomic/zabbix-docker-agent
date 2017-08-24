@@ -12,7 +12,7 @@ NOTICE: This is not replacement for standard Zabbix Agent.
 To start monitoring you need to do the following:
 
 - Go to: Configuration > Actions > Event Source: Auto Registration > Create Action
-- Under Action tab create "New condition" with "Host metadata" like "ECSInstance"
+- Under Action tab create "New condition" with "Host metadata" like "DockerInstance"
 - Under Operations tab create "Operations", "Operation type" is "Link to template" and "Templates" is "Template Docker Instance"
 - Add
 
@@ -54,20 +54,25 @@ It needs to be mounted inside agent container under /cgroupfs (e.g. -v /cgroup:/
 | DOCKERHOST      | Yes      |                                          | Hostname used on Zabbix server for Docker Instance |
 | ZBX_SERVER_HOST | Yes      |                                          |                                                    |
 | ZBX_SERVER_PORT | No       | 10051                                    |                                                    |
-| HOSTMETADATA    | No       | ECSInstance                              |                                                    |
+| HOSTMETADATA    | No       | DockerInstance                           |                                                    |
 | MAX_WORKERS     | No       | 5                                        |                                                    |
 | CGROUPS_DIR     | No       | /cgroupfs                                | Directory where cgroup fs is mounted in container  |
-| CLUSTER_LABEL   | No       | com.amazonaws.ecs.cluster                |                                                    |
-| SERVICE_LABEL   | No       | com.amazonaws.ecs.task-definition-family |                                                    |
+| LABELS          | No       |                                          | Docker labels used to create Zabbix Groups         |
 | LOGLEVEL        | No       | INFO                                     | CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET      |
 
 
 ## Discovery
 
-- Copy zabbixDockerDiscovery to Zabbix server
+- Instal zabbix-agent-docker on Zabbix server
+```shell
+pip3 install zabbix-docker-agent
+```
 - Create API user on Zabbix
-- Edit zabbixDockerDiscovery and enter API user credentials
+- Copy example config file dockerDiscovery.json.example and edit it
 - Run zabbixDockerDiscovery by crontab on Zabbix Server
+```shell
+*/15 * * * * /usr/local/bin/zabbixDockerDiscovery 2>&1 >/dev/null
+```
 
 # Running
 
@@ -77,9 +82,10 @@ Easiest way to run the Zabbix Docker Agent is to start it as a container on the 
 docker run -d --restart always --name zabbixAgent \
 -e DOCKERHOST=$(curl -s http://169.254.169.254/latest/meta-data/instance-id) \
 -e ZBX_SERVER_HOST=zabbix-server.foo.bar \
+-e LABELS="StackName,com.amazonaws.ecs.task-definition-family" \
 -v /cgroup:/cgroupfs \
 -v /var/run/docker.sock:/var/run/docker.sock \
-akomic/zabbix-docker-agent:0.1.2
+akomic/zabbix-docker-agent:latest
 ```
 
 Edit and run zabbixDockerDiscovery on Zabbix Server.

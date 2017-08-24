@@ -11,6 +11,7 @@ build:
 	docker build -f Dockerfile -t $(REGISTRY_HOST)/$(USERNAME)/$(NAME):$(VERSION) .
 push:
 	docker push $(REGISTRY_HOST)/$(USERNAME)/$(NAME):$(VERSION)
+	docker push $(REGISTRY_HOST)/$(USERNAME)/$(NAME):latest
 clean:
 	docker rmi $(USERNAME)/$(NAME):$(VERSION)
 

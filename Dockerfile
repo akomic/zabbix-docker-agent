@@ -2,7 +2,7 @@ FROM python:3.6.0-slim
 
 LABEL maintainer "Alen Komic <akomic@gmail.com>"
 
-ADD zabbixAgentd setup.py setup.cfg README.txt /app/
+ADD zabbixAgentd zabbixDockerDiscovery setup.py setup.cfg README.txt dockerDiscovery.json.example /app/
 
 ADD ZabbixDockerAgent /app/ZabbixDockerAgent/
 
