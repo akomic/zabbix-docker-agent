@@ -78,6 +78,17 @@ pip3 install zabbix-docker-agent
 
 Easiest way to run the Zabbix Docker Agent is to start it as a container on the server instance that you want to monitor.
 
+
+```shell
+docker run -d --restart always --name zabbixAgent \
+-e DOCKERHOST=$HOSTNAME \
+-e ZBX_SERVER_HOST=zabbix-server.foo.bar \
+-e LABELS="MyCluster,MyService" \
+-v /cgroup:/cgroupfs \
+-v /var/run/docker.sock:/var/run/docker.sock \
+akomic/zabbix-docker-agent:0.2.3
+```
+
 ```shell
 docker run -d --restart always --name zabbixAgent \
 -e DOCKERHOST=$(curl -s http://169.254.169.254/latest/meta-data/instance-id) \
@@ -85,7 +96,7 @@ docker run -d --restart always --name zabbixAgent \
 -e LABELS="StackName,com.amazonaws.ecs.task-definition-family" \
 -v /cgroup:/cgroupfs \
 -v /var/run/docker.sock:/var/run/docker.sock \
-akomic/zabbix-docker-agent:latest
+akomic/zabbix-docker-agent:0.2.3
 ```
 
 Edit and run zabbixDockerDiscovery on Zabbix Server.
